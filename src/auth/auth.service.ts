@@ -1,7 +1,8 @@
 import {
     Injectable,
     UnauthorizedException,
-    BadRequestException
+    BadRequestException,
+    InternalServerErrorException
 } from "@nestjs/common";
 import { UsersService } from "../users/users.service";
 import { JwtService } from "@nestjs/jwt";
@@ -35,7 +36,11 @@ export class AuthService {
     // Login
     async login(user: any): Promise<{ accessToken: string }> {
         const payload = { id: user._id.toString(), username: user.username };
-        const accessToken = await this.jwtService.signAsync(payload);
-        return { accessToken };
+        try {
+            const accessToken = await this.jwtService.signAsync(payload);
+            return { accessToken };
+        } catch (err) {
+            throw new InternalServerErrorException("something went wrong");
+        }
     }
 }

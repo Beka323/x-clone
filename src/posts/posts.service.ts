@@ -20,11 +20,15 @@ export class PostsService {
         return allPost;
     }
     async getPost(id: string): Promise<any> {
-        const post = await this.postModel.findById(id).exec();
-        if (!post) {
-            throw new NotFoundException("no post founded");
+        try {
+            const post = await this.postModel.findById(id).exec();
+            if (!post) {
+                throw new NotFoundException("no post founded");
+            }
+            return post;
+        } catch (err) {
+            throw new InternalServerErrorException("some thing went wrong");
         }
-        return post;
     }
     async followingPost(id: string[]): Promise<any> {
         try {

@@ -9,7 +9,6 @@ import { Model } from "mongoose";
 import { User } from "./schema/user.schema";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-
 import * as bcrypt from "bcryptjs";
 
 @Injectable()
@@ -17,25 +16,32 @@ export class UsersService {
     constructor(@InjectModel(User.name) private userModel: Model<User>) {}
     // Get user by param id
     async getUser(id: string): Promise<any> {
-        const user = await this.userModel.findById(id).exec();
-
-        if (!user) {
-            throw new NotFoundException("No User Found");
+        try {
+            const user = await this.userModel.findById(id).exec();
+            if (!user) {
+                throw new NotFoundException("No User Found");
+            }
+            user.password = "";
+            return user;
+        } catch (err) {
+            throw new InternalServerErrorException("some thing went wrong");
         }
-        user.password = "";
-        return user;
     }
     // Add Post
     async addPost(id: string, postId: string): Promise<any> {
-        const findAndAdd = await this.userModel.findOneAndUpdate(
-            { _id: Object(id) },
-            {
-                $push: {
-                    posts: postId
+        try {
+            const findAndAdd = await this.userModel.findOneAndUpdate(
+                { _id: Object(id) },
+                {
+                    $push: {
+                        posts: postId
+                    }
                 }
-            }
-        );
-        await findAndAdd.save();
+            );
+            await findAndAdd.save();
+        } catch (err) {
+            throw new InternalServerErrorException("some thing went wronge");
+        }
     }
     // Register
     async register(user: CreateUserDto): Promise<{ msg: string }> {
@@ -83,45 +89,53 @@ export class UsersService {
             throw new NotFoundException("user not found");
         }
         if (userOne.following.includes(userId.userid)) {
-            const removeFollowing = await this.userModel.findOneAndUpdate(
+            try {
+                const removeFollowing = await this.userModel.findOneAndUpdate(
+                    { _id: Object(userId.id) },
+                    {
+                        $pull: {
+                            following: userId.userid
+                        }
+                    }
+                );
+                const removeFollower = await this.userModel.findOneAndUpdate(
+                    { _id: Object(userId.userid) },
+                    {
+                        $pull: {
+                            followers: userId.id
+                        }
+                    }
+                );
+                await removeFollowing.save();
+                await removeFollower.save();
+                return "un followed";
+            } catch (err) {
+                throw new InternalServerErrorException("some thing went wrong");
+            }
+        }
+        try {
+            const addFollowing = await this.userModel.findOneAndUpdate(
                 { _id: Object(userId.id) },
                 {
-                    $pull: {
+                    $push: {
                         following: userId.userid
                     }
                 }
             );
-            const removeFollower = await this.userModel.findOneAndUpdate(
+            const addFollower = await this.userModel.findOneAndUpdate(
                 { _id: Object(userId.userid) },
                 {
-                    $pull: {
+                    $push: {
                         followers: userId.id
                     }
                 }
             );
-            await removeFollowing.save();
-            await removeFollower.save();
-            return "un followed";
+            await addFollower.save();
+            await addFollowing.save();
+            return "followed";
+        } catch (err) {
+            throw new InternalServerErrorException("something went wrong");
         }
-        const addFollowing = await this.userModel.findOneAndUpdate(
-            { _id: Object(userId.id) },
-            {
-                $push: {
-                    following: userId.userid
-                }
-            }
-        );
-        const addFollower = await this.userModel.findOneAndUpdate(
-            { _id: Object(userId.userid) },
-            {
-                $push: {
-                    followers: userId.id
-                }
-            }
-        );
-        await addFollower.save();
-        await addFollowing.save();
-        return "followed";
     }
     //usersuggestion ( people you might know)
     async suggestion(): Promise<any> {
